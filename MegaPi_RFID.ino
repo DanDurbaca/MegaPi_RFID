@@ -2788,37 +2788,11 @@ boolean read_serial(void)
 }
 
 
-/*
-
-void read_rfid()
-{
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-  uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-    
-  // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
-  // 'uid' will be populated with the UID, and uidLength will indicate
-  // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength,1);
-  Serial.println("Trying to read... ");
-  if (success) {
-    Serial.println("Success reading");
-    if (uidLength == 4)
-    {
-      Serial.println("uid Len is 4");
-      Encoder_3.setTarPWM(50);
-      delay(500);
-      Encoder_3.setTarPWM(-50);
-      delay(500);
-      Encoder_3.setTarPWM(0);
-      // We probably have a Mifare Classic card ... 
-    }
-  }
-}*/
-
 void onRfidReadCard(){
     // This is basically the adafruit print hex function
-    String s = "";
+    // to DO !
+    // write a FAST routine to check the uid vector
+   /* String s = "";
     for(int i = 0; i < uidLength; i++){
       if(uid[i] <= 0xF){
         s += "0";
@@ -2833,7 +2807,7 @@ void onRfidReadCard(){
       lastNfc = s;
       uidLength = 0;
       for(int i = 0; i < uidLength; i++) uid[i] = 0;
-    }
+    }*/
 }
 
 void setup()
@@ -2910,8 +2884,20 @@ void setup()
     
   // configure board to read RFID tags
   nfc.SAMConfig();
-  //attachInterrupt(digitalPinToInterrupt(IRQ), onRfidReadCard, RISING);
-  attachInterrupt(3, onRfidReadCard, RISING);
+  attachInterrupt(3, onRfidReadCard, RISING); 
+  /* The 3 above is RLY RLY BAD:
+   *  https://www.arduino.cc/reference/en/language/functions/external-interrupts/attachinterrupt/
+   *  On MegaPi there are 6 digital pins with interrupts:
+   *  2, 3, 20, 21, 18 19
+   *  The pins 2,3,18 and 19 are used for the motors.
+   *  Pins 20 and 21 are used (BY DEFAULT) by SCL and SDA of the I2P communication.
+   *  
+   *  This means that we CANNOT use the actual IRQ - Pin 22 that we pass on to the nfc as IRQ.
+   *  
+   *  The (BAD) workaround is to use either pin 21 - int 2 OR pin 20 - int 3
+   *  as digital pins for interrups. BUT those are already used for the communication itself (SCL - clock and SDA - data).
+   *  
+  */
   
   BluetoothSource = DATA_SERIAL2;
 }
