@@ -136,8 +136,11 @@ int16_t LineFollowFlag=0;
 #define IRQ   (22) // DD 02 April 2019 - This is pin 22 on MegaPi - we lifted the Bluetooth module phisically to connect to this pin 
 #define RESET (3)  // Not connected by default on the NFC Shield - no usage !
 
-uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-uint8_t uidLength; // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+volatile uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+volatile uint8_t lastUid[] = { 0, 0, 0, 0, 0, 0, 0 };
+volatile uint8_t uidLength; // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+volatile bool foundNfcCard = false;
+
 String lastNfc = "";
 
 Adafruit_NFCShield_I2C nfc(IRQ, RESET);
@@ -2789,25 +2792,10 @@ boolean read_serial(void)
 
 
 void onRfidReadCard(){
-    // This is basically the adafruit print hex function
-    // to DO !
-    // write a FAST routine to check the uid vector
-   /* String s = "";
-    for(int i = 0; i < uidLength; i++){
-      if(uid[i] <= 0xF){
-        s += "0";
-      }
-      s += String(uid[i]&0xff, HEX);
+    if (uidLength == 4)
+    {
+      foundNfcCard = true;      
     }
-
-    if (s != "")
-    if(s != lastNfc){   // prevent reading the same card twice in a row
-      Serial.print("I got one: ");
-      Serial.println(s);   
-      lastNfc = s;
-      uidLength = 0;
-      for(int i = 0; i < uidLength; i++) uid[i] = 0;
-    }*/
 }
 
 void setup()
@@ -2884,7 +2872,7 @@ void setup()
     
   // configure board to read RFID tags
   nfc.SAMConfig();
-  attachInterrupt(3, onRfidReadCard, RISING); 
+  //attachInterrupt(3, onRfidReadCard, RISING); 
   /* The 3 above is RLY RLY BAD:
    *  https://www.arduino.cc/reference/en/language/functions/external-interrupts/attachinterrupt/
    *  On MegaPi there are 6 digital pins with interrupts:
@@ -2900,6 +2888,15 @@ void setup()
   */
   
   BluetoothSource = DATA_SERIAL2;
+}
+
+bool foundTheSameId()
+{
+  int sum= 0;
+  for(int i=0;i<=3;i++)
+    sum += lastUid[i]^uid[i]; // xor the bits
+  Serial.println(sum);
+  return sum==0;
 }
 
 /**
@@ -2931,8 +2928,33 @@ void loop()
   if(millis() - rfid_last_read_time > RFID_READ_DELAY)
   {
     rfid_last_read_time = millis();
-    //read_rfid();
+    attachInterrupt(3, onRfidReadCard, RISING); 
+    foundNfcCard = false;
     nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 100);
+  }
+  
+  if (foundNfcCard)
+  {
+     foundNfcCard = false;
+     if (!foundTheSameId())
+     {
+       bool success;
+       detachInterrupt(3); 
+       uint8_t keya[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+       success = nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keya);
+      
+        if (success)
+        {
+          uint8_t data[16];
+          // Try to read the contents of block 4
+          success = nfc.mifareclassic_ReadDataBlock(4, data);
+          // Data seems to have been read ... spit it out
+            Serial.println("Reading Block 4:");
+            nfc.PrintHexChar(data, 16);
+            Serial.println("");
+            uidLength = 0;
+        }    
+     }
   }
 
   if(ir != NULL)
