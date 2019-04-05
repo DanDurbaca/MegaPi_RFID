@@ -132,7 +132,7 @@ int16_t LineFollowFlag=0;
 #define DATA_SERIAL2                           2
 #define DATA_SERIAL3                           3
 
-#define RFID_READ_DELAY                     2000
+#define RFID_READ_DELAY                     2000 // 2 seconds
 #define IRQ   (22) // DD 02 April 2019 - This is pin 22 on MegaPi - we lifted the Bluetooth module phisically to connect to this pin 
 #define RESET (3)  // Not connected by default on the NFC Shield - no usage !
 
@@ -2791,12 +2791,6 @@ boolean read_serial(void)
 }
 
 
-void onRfidReadCard(){
-    if (uidLength == 4)
-    {
-      foundNfcCard = true;      
-    }
-}
 
 void setup()
 {
@@ -2854,21 +2848,24 @@ void setup()
   Serial.println(mVersion);
   update_sensor = lasttime_speed = lasttime_angle = millis();
   blink_time = millis();
-  rfid_last_read_time = millis();
-
-  //Serial.println("Hello!");
   
+  
+  rfid_last_read_time = millis();
+  Serial.println("Hello!");
   nfc.begin();
   nfc.setPassiveActivationRetries(0x01);
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (! versiondata) {
-    //Serial.print("Didn't find PN53x board");
-    while (1); // halt
+    Serial.print("Didn't find PN53x board");
+    //while (1); // halt
   }
+  else
+  {
   // Got ok data, print it out!
-  //Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
-  //Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
-  //Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+    Serial.print("Found chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
+    Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
+    Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+  }
     
   // configure board to read RFID tags
   nfc.SAMConfig();
@@ -2890,10 +2887,20 @@ void setup()
   BluetoothSource = DATA_SERIAL2;
 }
 
+
+
+void onRfidReadCard(){
+    if ((uidLength == 4)||(uidLength == 7))
+    {
+      foundNfcCard = true;
+    }
+}
+
+
 bool foundTheSameId()
 {
   int sum= 0;
-  for(int i=0;i<=3;i++)
+  for(int i=0;i<=uidLength;i++)
     sum += lastUid[i]^uid[i]; // xor the bits
   Serial.println(sum);
   return sum==0;
@@ -2936,10 +2943,11 @@ void loop()
   if (foundNfcCard)
   {
      foundNfcCard = false;
+     detachInterrupt(3); 
      if (!foundTheSameId())
      {
        bool success;
-       detachInterrupt(3); 
+       memcpy(lastUid,uid,7);
        uint8_t keya[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
        success = nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keya);
       
@@ -2952,9 +2960,9 @@ void loop()
             Serial.println("Reading Block 4:");
             nfc.PrintHexChar(data, 16);
             Serial.println("");
-            uidLength = 0;
         }    
      }
+     uidLength = 0;
   }
 
   if(ir != NULL)
