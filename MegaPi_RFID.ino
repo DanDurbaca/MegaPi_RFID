@@ -2890,7 +2890,7 @@ void setup()
 
 
 void onRfidReadCard(){
-    if ((uidLength == 4)||(uidLength == 7))
+    if (uidLength == 4)
     {
       foundNfcCard = true;
     }
@@ -2986,6 +2986,7 @@ void loop()
   {
     steppers[3].update();
   }
+
 
   Encoder_1.loop();
   Encoder_2.loop();
