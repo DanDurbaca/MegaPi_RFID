@@ -60,7 +60,7 @@ MeEncoderOnBoard Encoder_1(SLOT1);
 MeEncoderOnBoard Encoder_2(SLOT2);
 MeEncoderOnBoard Encoder_3(SLOT3);
 MeEncoderOnBoard Encoder_4(SLOT4);
-MeLineFollower line(PORT_8);
+MeLineFollower line(PORT_8); 
 
 typedef struct MeModule
 {
@@ -144,6 +144,7 @@ volatile bool foundNfcCard = false;
 String lastNfc = "";
 
 Adafruit_NFCShield_I2C nfc(IRQ, RESET);
+uint8_t lastCardRead;
 
 uint8_t command_index = 0;
 uint8_t megapi_mode = BLUETOOTH_MODE;
@@ -1874,7 +1875,8 @@ void readSensor(uint8_t device)
           delete us;
           us = new MeUltrasonicSensor(port);
         }
-        value = (float)us->distanceCm();
+        /*value = (float)us->distanceCm();*/
+        value = lastCardRead;
         writeHead();
         writeSerial(command_index);
         sendFloat(value);
@@ -2958,6 +2960,7 @@ void loop()
           success = nfc.mifareclassic_ReadDataBlock(4, data);
           // Data seems to have been read ... spit it out
             Serial.println("Reading Block 4:");
+            lastCardRead = data [2]; // use the second byte !!!
             nfc.PrintHexChar(data, 16);
             Serial.println("");
         }    
