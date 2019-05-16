@@ -93,3 +93,23 @@ Use this link:
 http://learn.makeblock.com/ultimate2-arduino-programming/ 
 
 to make a NON blocking program that raises the robot arm a tiny bit and lowers it in the same position ONCE every 10 seconds !
+
+
+16th of MAY:
+
+Changed the code such that the ultrasonic sensor is NO LONGER getting data from a real ultrasonic sensor but instead its readings (on the phone) 
+reflect the readings of the Adafruit Rfid card reader.
+Every 2 seconds, the reader reads and on a successfull reading updates a variable with the second byte of the 4th sector 
+(that should contain our team IDs). We spit this byte value out to the Makeblock phone app.
+
+Still to be done: 
+	EASY tasks:
+	- When reading not successfull - send a 255 value out
+	- Update the reading and instead of using a full byte (which contains TWICE our team id) - use just a nibble (halfbyte)
+	- Send the count of readings "somehow" ??? - if still reading the same card - update some counter and add that up to reflect how many times we read the same card.
+	IMPORTANT hard task:
+	- USE THE linefollower module (we plugged it in the hardware) - write code that detects when we have an all black zone... 
+	presumably our homezone AND signal that to the Phone app - still using the "fake" ultrasonic sensor reading.
+
+	OPTIONAL:	
+	- Do what we planned in the begining (see TODO 2nd of May) - implement for the robot to move the arm up/down for a bit whenever we find our box.
