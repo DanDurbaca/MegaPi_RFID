@@ -120,3 +120,7 @@ Still to be done:
   - NEW: the robot makes a sign now - whenever reading number 5 (our team id) from the tag
 
   Still NOT DONE: the linefollower module (although phisically installed) is NOT USED !!!!
+
+  - The gripper now ENABLES or DISABLES the signaling of the robot arm. 
+          - when the gripper is tightened - robot arm signaling gets disabled
+          - when the gripper is loosened - robot arm signaling gets enabled !!
