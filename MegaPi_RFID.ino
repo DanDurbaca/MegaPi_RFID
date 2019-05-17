@@ -135,6 +135,9 @@ int16_t LineFollowFlag=0;
 #define RFID_READ_DELAY                     2000 // 2 seconds
 #define IRQ   (22) // DD 02 April 2019 - This is pin 22 on MegaPi - we lifted the Bluetooth module phisically to connect to this pin 
 #define RESET (3)  // Not connected by default on the NFC Shield - no usage !
+#define NOT_HTML_TEAM                          5
+#define ARM_MOVE_TIME                       1000 // One second
+
 
 volatile uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 volatile uint8_t lastUid[] = { 0, 0, 0, 0, 0, 0, 0 };
@@ -146,6 +149,9 @@ String lastNfc = "";
 Adafruit_NFCShield_I2C nfc(IRQ, RESET);
 float lastCardRead;
 uint8_t rfidTag_data[16];
+bool armYesMovementStarted_flag = false;
+bool yesMoveDownStarted_flag = false;
+
 
 uint8_t command_index = 0;
 uint8_t megapi_mode = BLUETOOTH_MODE;
@@ -178,6 +184,7 @@ long lasttime_speed = 0;
 long update_sensor = 0;
 long blink_time = 0;
 long rfid_last_read_time = 0;
+long start_yes_time = 0;
 long last_Pulse_pos_encoder1 = 0;
 long last_Pulse_pos_encoder2 = 0;
 
@@ -2926,6 +2933,7 @@ bool foundTheSameId()
  */
 void loop()
 {
+
   currentTime = millis()/1000.0-lastTime;
   keyPressed = buttonSensor.pressed();
 
@@ -2939,9 +2947,29 @@ void loop()
   if(millis() - rfid_last_read_time > RFID_READ_DELAY)
   {
     rfid_last_read_time = millis();
+    lastCardRead = 0;
     attachInterrupt(3, onRfidReadCard, RISING); 
     foundNfcCard = false;
     nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 100);
+  }
+
+  if (armYesMovementStarted_flag)
+  {
+    long durationSinceStart = millis()-start_yes_time;
+    if (durationSinceStart>ARM_MOVE_TIME)
+    {
+        Encoder_3.move(0,abs(0));
+        armYesMovementStarted_flag = false;
+        yesMoveDownStarted_flag = false;
+    }
+    else
+    if (durationSinceStart>(ARM_MOVE_TIME/2))
+    if (yesMoveDownStarted_flag == false)
+    {
+      yesMoveDownStarted_flag = true;
+      Encoder_3.move(200,abs(50)); // MOVE DOWN
+    }
+      
   }
   
   if (foundNfcCard)
@@ -2957,17 +2985,26 @@ void loop()
       
         if (success)
         {
-
           // Try to read the contents of block 4
           success = nfc.mifareclassic_ReadDataBlock(4, rfidTag_data);
           // Data seems to have been read ... spit it out
             Serial.println("Reading Block 4:");
-            uint8_t temp = rfidTag_data [2] >> 4;
-            lastCardRead = (float)temp;
             nfc.PrintHexChar(rfidTag_data, 16);
             Serial.println("");
         }    
      }
+     uint8_t teamId = rfidTag_data [2] >> 4; // shift 4 bits - remove lower nibble
+     if (!armYesMovementStarted_flag)
+     if (teamId == NOT_HTML_TEAM)
+     {
+        start_yes_time = millis();
+        armYesMovementStarted_flag = true;
+        // start up
+        Serial.println("Firing up motor");
+        Encoder_3.move(-200,abs(-50));
+     }
+     
+     lastCardRead = (float)teamId; // prepare a float for the distance sensor !!
      uidLength = 0;
   }
 
