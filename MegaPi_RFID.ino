@@ -151,6 +151,9 @@ float lastCardRead;
 uint8_t rfidTag_data[16];
 bool armYesMovementStarted_flag = false;
 bool yesMoveDownStarted_flag = false;
+bool armSignMoveEnabled = true;
+
+
 
 
 uint8_t command_index = 0;
@@ -1401,6 +1404,17 @@ void runModule(uint8_t device)
         int16_t speed = readShort(7);
         dc.reset(port);
         dc.run(speed);
+        /*Serial.println("Motor case:");
+        Serial.println(port);
+        Serial.println(speed);*/ // port 12 is the GRIPPER !!!!!!
+        if (port == 12)
+        {
+          if (speed <0)
+             armSignMoveEnabled = true; // on close grip - we DISABLE the signs 
+           /*DO NOTHING FOR 0*/
+          if (speed >0)
+             armSignMoveEnabled = false; // on open grip - we ENABLE the signs 
+        }
       }
       break;
     case ENCODER_BOARD:
@@ -2936,13 +2950,13 @@ void loop()
 
   currentTime = millis()/1000.0-lastTime;
   keyPressed = buttonSensor.pressed();
-
+/*
   if(millis() - blink_time > 1000)
   {
     blink_time = millis();
     blink_flag = !blink_flag;
     digitalWrite(13,blink_flag);
-  }
+  }*/
 
   if(millis() - rfid_last_read_time > RFID_READ_DELAY)
   {
@@ -2958,7 +2972,7 @@ void loop()
     long durationSinceStart = millis()-start_yes_time;
     if (durationSinceStart>ARM_MOVE_TIME)
     {
-        Encoder_3.move(0,abs(0));
+        Encoder_3.move(0,abs(0)); // STOP ALL MOVEMENT
         armYesMovementStarted_flag = false;
         yesMoveDownStarted_flag = false;
     }
@@ -2994,14 +3008,16 @@ void loop()
         }    
      }
      uint8_t teamId = rfidTag_data [2] >> 4; // shift 4 bits - remove lower nibble
-     if (!armYesMovementStarted_flag)
-     if (teamId == NOT_HTML_TEAM)
+
+     if (armSignMoveEnabled) // if enabled sign move 
+     if (!armYesMovementStarted_flag) // if movement NOT already started
+     if (teamId == NOT_HTML_TEAM) // our team ID found on the box
      {
         start_yes_time = millis();
         armYesMovementStarted_flag = true;
         // start up
-        Serial.println("Firing up motor");
-        Encoder_3.move(-200,abs(-50));
+        Serial.println("Firing up motor"); 
+        Encoder_3.move(-200,abs(-50)); // MOVE UP
      }
      
      lastCardRead = (float)teamId; // prepare a float for the distance sensor !!
@@ -3036,18 +3052,6 @@ void loop()
   Encoder_3.loop();
   Encoder_4.loop();
 
-//  while(Serial.available() > 0)
-//  {
-//    char c = Serial.read();
-//    Serial.write(c);
-//    buf[bufindex++]=c;
-//    if((c=='\n') || (c=='#'))
-//    {
-//      parseCmd(buf);
-//      memset(buf,0,64);
-//      bufindex = 0;
-//    }
-//  }
 
   readSerial();
   while(isAvailable)
