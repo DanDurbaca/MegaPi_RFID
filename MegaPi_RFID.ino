@@ -144,7 +144,8 @@ volatile bool foundNfcCard = false;
 String lastNfc = "";
 
 Adafruit_NFCShield_I2C nfc(IRQ, RESET);
-uint8_t lastCardRead;
+float lastCardRead;
+uint8_t rfidTag_data[16];
 
 uint8_t command_index = 0;
 uint8_t megapi_mode = BLUETOOTH_MODE;
@@ -1876,7 +1877,8 @@ void readSensor(uint8_t device)
           us = new MeUltrasonicSensor(port);
         }
         /*value = (float)us->distanceCm();*/
-        value = lastCardRead;
+        value = (float)lastCardRead;
+        /*Serial.print(value);*/
         writeHead();
         writeSerial(command_index);
         sendFloat(value);
@@ -2955,13 +2957,14 @@ void loop()
       
         if (success)
         {
-          uint8_t data[16];
+
           // Try to read the contents of block 4
-          success = nfc.mifareclassic_ReadDataBlock(4, data);
+          success = nfc.mifareclassic_ReadDataBlock(4, rfidTag_data);
           // Data seems to have been read ... spit it out
             Serial.println("Reading Block 4:");
-            lastCardRead = data [2]; // use the second byte !!!
-            nfc.PrintHexChar(data, 16);
+            uint8_t temp = rfidTag_data [2] >> 4;
+            lastCardRead = (float)temp;
+            nfc.PrintHexChar(rfidTag_data, 16);
             Serial.println("");
         }    
      }
